@@ -5,6 +5,8 @@ library(plyr)
 library(fitdistrplus)
 library(Hmisc)
 library(corrplot)
+library(ggplot2)
+library(ggfortify)
 
 entrenamiento = read.csv("train.csv") 
 prueba = read.csv("test.csv")
@@ -231,7 +233,8 @@ total <- within(total, rm("BsmtCond","BsmtExposure", "BsmtFinType1", "BsmtFinTyp
                          "HeatingQC","CentralAir","Electrial","KitchenQual","Functional",
                          "FireplaceQu","GarageType","GarageYrBlt","GarageFinish","GarageQual",
                          "GarageCond","PavedDrive","PoolQC","Fence","MiscFeature","SaleType","SaleCondition"))
-
+total<- within(total, rm("Electrical"))
+#correlacion variables numericas
 t <- sapply(total,as.numeric)
 correl2 <- rcorr(as.matrix(t))
 correl2
@@ -241,4 +244,11 @@ M <- M[complete.cases(M),]
 p_mat <- correl2$P
 corrplot(M, order = "hclust", p.mat= p_mat, sig.level = 0.01, na.label = "NA")
 
-
+#PCA
+t <- total[complete.cases(total),]
+pca <- prcomp(t, center = TRUE, scale. = TRUE)
+pca
+summary(pca)
+autoplot(pca, data = t,
+         loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3)
