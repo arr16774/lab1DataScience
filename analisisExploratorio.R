@@ -7,7 +7,9 @@ library(Hmisc)
 library(corrplot)
 library(ggplot2)
 library(ggfortify)
-
+library(factoextra)
+library(caret)
+library(cluster)
 entrenamiento = read.csv("train.csv") 
 prueba = read.csv("test.csv")
 entrenamiento1 <- data.frame(entrenamiento)
@@ -230,10 +232,9 @@ total<-within(total, rm("Neighborhood","Condition1","Condition2","BldgType","Hou
 total<- within(total, rm("Utilities","LotConfig","RoofMatl","Exterior1st","Exterior2nd",
                       "MasVnrType","ExterQual","ExterCond","Foundation","BsmtQual"))
 total <- within(total, rm("BsmtCond","BsmtExposure", "BsmtFinType1", "BsmtFinType2", "Heating",
-                         "HeatingQC","CentralAir","Electrial","KitchenQual","Functional",
+                         "HeatingQC","CentralAir","Electrical","KitchenQual","Functional",
                          "FireplaceQu","GarageType","GarageYrBlt","GarageFinish","GarageQual",
                          "GarageCond","PavedDrive","PoolQC","Fence","MiscFeature","SaleType","SaleCondition"))
-total<- within(total, rm("Electrical"))
 #correlacion variables numericas
 t <- sapply(total,as.numeric)
 correl2 <- rcorr(as.matrix(t))
@@ -249,6 +250,49 @@ t <- total[complete.cases(total),]
 pca <- prcomp(t, center = TRUE, scale. = TRUE)
 pca
 summary(pca)
+
+#interpretacion del pca variables
+variables <- get_pca_var(pca)
+variables$contrib
+variables$cos2
+variables$coord
+
+#interpretacion del pca indiviual
+individual <- get_pca_ind(pca)
+individual$coord
+individual$contrib
+individual$cos2
+
+#biplot de pca scores and loadings
 autoplot(pca, data = t,
          loadings = TRUE, loadings.colour = 'blue',
          loadings.label = TRUE, loadings.label.size = 3)
+
+#visualizacion del impacto que tiene cada una de la variables en el data set
+fviz_pca_var(pca,
+             col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE)
+#scree plot, grafica util para clustering
+fviz_eig(pca)
+
+#clustering kmeans todas las variables
+kmedias <- kmeans(t,centers = 4, iter.max = 100000)
+
+fviz_cluster(kmedias, data = t)
+
+#reducir dataset por medio de los resultados de pca
+t <- within(t, rm("LotFrontage","LotArea","MasVnrArea","BsmtFinSF2",
+                  "BsmtUnfSF","X2ndFlrSF","LowQualFinSF","BsmtFullBath"))
+t <- within(t,rm("BsmtHalfBath","HalfBath","BedroomAbvGr","Fireplaces","GarageCars",
+                 "GarageArea","WoodDeckSF","OpenPorchSF","EnclosedPorch","X3SsnPorch",
+                 "ScreenPorch","PoolArea","MiscVAl","MoSold","YrSold","FullBath","KitchenAbvGr"))
+
+#clustering con dataset reducido
+t <- scale(t)
+kmedias2 <- kmeans(t,2, nstart = 25)
+fviz_cluster(kmedias2, data=t)
+summary(kmedias2)
+#silueta
+silkm<-silhouette(kmedias2$cluster,dist(t))
+mean(silkm[,3])
